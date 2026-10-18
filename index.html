@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Order</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:var(--tg-theme-bg-color,#fff);--tx:var(--tg-theme-text-color,#111);--hint:var(--tg-theme-hint-color,#777);--card:var(--tg-theme-secondary-bg-color,#f2f2f4);--btn:var(--tg-theme-button-color,#2481cc);--btx:var(--tg-theme-button-text-color,#fff)}
+*{box-sizing:border-box}body{margin:0;font:16px system-ui,sans-serif;background:var(--bg);color:var(--tx);padding:16px 16px 120px}
+h2{font-size:18px;margin:20px 0 8px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt{background:var(--card);border:2px solid transparent;border-radius:12px;padding:14px;text-align:center;cursor:pointer}
+.opt.on{border-color:var(--btn)}select,input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--hint);background:var(--bg);color:var(--tx);font-size:16px;margin-top:8px}
+.info{background:var(--card);border-radius:10px;padding:10px 12px;margin-top:10px;font-size:14px}
+.tabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:12px}.tab{padding:6px 14px;border-radius:16px;background:var(--card);white-space:nowrap;cursor:pointer}.tab.on{background:var(--btn);color:var(--btx)}
+.prod{background:var(--card);border-radius:12px;padding:8px}.prod img{width:100%;height:90px;object-fit:cover;border-radius:8px;background:#ccc}
+.prod b{display:block;margin-top:6px;font-size:14px}.q{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+.q button{width:36px;height:32px;border:0;border-radius:8px;background:var(--bg);color:var(--tx);font-size:18px}
+.bar{height:6px;background:var(--card);border-radius:3px;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:var(--btn)}
+.foot{position:fixed;left:0;right:0;bottom:0;background:var(--bg);padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--card)}
+.go{width:100%;padding:14px;border:0;border-radius:12px;background:var(--btn);color:var(--btx);font-size:16px}.go:disabled{opacity:.4}
+.warn{color:#d9534f;font-size:13px;margin-top:6px}
+</style>
+</head>
+<body>
+<script>
+/* ============ EDIT THIS PART ============ */
+const ADMIN_USERNAME = "cashPayment_only";   // without @
+const API_URL = "/order";                            // served by server.js on the same address
+const PICKUP_MIN = 60;
+const FREE_DELIVERY_FROM = 300;                      // only for zone "Lisbon center"
+const ZONES = [
+  {name:"Lisbon center", fee:20, min:100, free:true},
+  {name:"Oeiras and area", fee:25, min:125},
+  {name:"Almada", fee:30, min:150},
+  {name:"West of Oeiras to Cascais", fee:40, min:200},
+  {name:"Costa da Caparica", fee:40, min:220},
+  {name:"Cascais", fee:50, min:250},
+  {name:"Setubal", fee:70, min:300},
+  {name:"Ericeira", fee:100, min:400},
+  {name:"Peniche", fee:120, min:500},
+  {name:"Algarve", fee:250, min:750},
+  {name:"Porto", fee:500, min:1000}
+];
+const PRODUCTS = [
+  {id:1, cat:"Category 1", name:"Product A", price:25, img:""},
+  {id:2, cat:"Category 1", name:"Product B", price:40, img:""},
+  {id:3, cat:"Category 2", name:"Product C", price:60, img:""},
+  {id:4, cat:"Category 2", name:"Product D", price:35, img:""}
+];
+/* ============ END OF EDIT PART ============ */
+
+const tg = window.Telegram.WebApp; tg.ready(); tg.expand();
+const S = {mode:"delivery", zone:null, address:"", cat:PRODUCTS[0].cat, cart:{}, pay:"Cash"};
+const $ = id => document.getElementById(id);
+const cats = [...new Set(PRODUCTS.map(p=>p.cat))];
+const sub = () => PRODUCTS.reduce((t,p)=>t+(S.cart[p.id]||0)*p.price,0);
+const zone = () => ZONES[S.zone];
+const min = () => S.mode==="pickup" ? PICKUP_MIN : (zone()?zone().min:0);
+const fee = () => S.mode==="pickup"||!zone() ? 0 : (zone().free && sub()>=FREE_DELIVERY_FROM ? 0 : zone().fee);
+const ready = () => sub()>0 && sub()>=min() && (S.mode==="pickup" || (zone() && S.address.trim().length>4));
+
+function render(){
+  document.body.innerHTML = `
+  <h2>How do you want to receive it?</h2>
+  <div class="row"><div class="opt ${S.mode==='delivery'?'on':''}" onclick="S.mode='delivery';render()">Delivery</div>
+  <div class="opt ${S.mode==='pickup'?'on':''}" onclick="S.mode='pickup';render()">Pickup</div></div>
+  ${S.mode==='delivery'?`
+  <select onchange="S.zone=this.value===''?null:+this.value;render()"><option value="">Select your area</option>
+  ${ZONES.map((z,i)=>`<option value="${i}" ${S.zone===i?'selected':''}>${z.name}</option>`).join('')}</select>
+  <input id="addr" placeholder="Street, number, floor" value="${S.address.replace(/"/g,'&quot;')}" oninput="S.address=this.value;upd()">
+  ${zone()?`<div class="info">Delivery fee: €${zone().fee}${zone().free?` (free from €${FREE_DELIVERY_FROM})`:''}<br>Minimum order: €${zone().min}</div>`:''}`
+  :`<div class="info">Minimum order: €${PICKUP_MIN}</div>`}
+  <h2>Menu</h2>
+  <div class="tabs">${cats.map(c=>`<div class="tab ${S.cat===c?'on':''}" onclick="S.cat='${c}';render()">${c}</div>`).join('')}</div>
+  <div class="row">${PRODUCTS.filter(p=>p.cat===S.cat).map(p=>`<div class="prod">${p.img?`<img src="${p.img}">`:'<img>'}
+  <b>${p.name}</b>€${p.price}<div class="q"><button onclick="chg(${p.id},-1)">-</button><span id="q${p.id}">${S.cart[p.id]||0}</span><button onclick="chg(${p.id},1)">+</button></div></div>`).join('')}</div>
+  <h2>Payment</h2>
+  <div class="row"><div class="opt ${S.pay==='Cash'?'on':''}" onclick="S.pay='Cash';render()">Cash</div>
+  <div class="opt ${S.pay==='Crypto'?'on':''}" onclick="S.pay='Crypto';render()">Crypto</div></div>
+  <div class="foot"><div id="sum"></div><div class="bar"><i id="pb"></i></div><div id="msg" class="warn"></div>
+  <button class="go" id="go" style="margin-top:10px" onclick="send()">Continue</button></div>`;
+  upd();
+}
+function chg(id,d){S.cart[id]=Math.max(0,(S.cart[id]||0)+d);$("q"+id).textContent=S.cart[id];upd()}
+function upd(){
+  const m=min(), s=sub();
+  $("sum").innerHTML=`Items €${s}${S.mode==='delivery'?` + delivery €${fee()}`:''} = <b>€${s+fee()}</b>`;
+  $("pb").style.width=(m?Math.min(100,s/m*100):0)+"%";
+  let msg="";
+  if(S.mode==='delivery'&&!zone())msg="Select your area first";
+  else if(S.mode==='delivery'&&S.address.trim().length<5)msg="Enter your address";
+  else if(s<m)msg=`Add €${m-s} more to reach the €${m} minimum`;
+  $("msg").textContent=msg; $("go").disabled=!ready();
+}
+async function send(){
+  const items=PRODUCTS.filter(p=>S.cart[p.id]).map(p=>({name:p.name,qty:S.cart[p.id],price:p.price}));
+  const order={mode:S.mode,zone:S.mode==='delivery'?zone().name:null,address:S.mode==='delivery'?S.address:null,
+    items,subtotal:sub(),fee:fee(),total:sub()+fee(),payment:S.pay};
+  if(API_URL){
+    try{const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({order,initData:tg.initData})});
+    if(!r.ok)throw 0}catch(e){$("msg").textContent="Couldn't send your order. Try again.";return}
+  }else{alert("Demo mode: no server connected.\n"+JSON.stringify(order,null,1));}
+  tg.openTelegramLink("https://t.me/"+ADMIN_USERNAME+"?text="+encodeURIComponent("Hey I would like to order"));
+}
+render();
+</script>
+</body>
+</html>
