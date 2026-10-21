@@ -1,280 +1,119 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Order</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<style>
-:root{--bg:var(--tg-theme-bg-color,#fff);--tx:var(--tg-theme-text-color,#111);--hint:var(--tg-theme-hint-color,#777);--card:var(--tg-theme-secondary-bg-color,#f2f2f4);--btn:var(--tg-theme-button-color,#2481cc);--btx:var(--tg-theme-button-text-color,#fff)}
-*{box-sizing:border-box}body{margin:0;font:16px system-ui,sans-serif;background:var(--bg);color:var(--tx);padding:16px 16px 120px}
-h2{font-size:18px;margin:20px 0 8px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.opt{background:var(--card);border:2px solid transparent;border-radius:12px;padding:14px;text-align:center;cursor:pointer}
-.opt.on{border-color:var(--btn)}select,input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--hint);background:var(--bg);color:var(--tx);font-size:16px;margin-top:8px}
-.info{background:var(--card);border-radius:10px;padding:10px 12px;margin-top:10px;font-size:14px}
-.tabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:12px}.tab{padding:6px 14px;border-radius:16px;background:var(--card);white-space:nowrap;cursor:pointer}.tab.on{background:var(--btn);color:var(--btx)}
-.prod{background:var(--card);border-radius:12px;padding:10px;margin-bottom:10px}
-.prod b{display:block;margin-top:6px;font-size:15px}.q{display:flex;align-items:center;justify-content:space-between}
-.q button{width:36px;height:32px;border:0;border-radius:8px;background:var(--bg);color:var(--tx);font-size:18px;cursor:pointer}
-.bar{height:6px;background:var(--card);border-radius:3px;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:var(--btn)}
-.foot{position:fixed;left:0;right:0;bottom:0;background:var(--bg);padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--card)}
-.go{width:100%;padding:14px;border:0;border-radius:12px;background:var(--btn);color:var(--btx);font-size:16px;cursor:pointer}.go:disabled{opacity:.4}
-.back-btn{width:100%;padding:10px;border:1px solid var(--hint);border-radius:12px;background:transparent;color:var(--tx);font-size:15px;margin-bottom:10px;cursor:pointer}
-.warn{color:#d9534f;font-size:13px;margin-top:6px}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lisbon delivery</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg: var(--tg-theme-bg-color, #17212b);
+      --text: var(--tg-theme-text-color, #f5f5f5);
+      --hint: var(--tg-theme-hint-color, #707579);
+      --card: var(--tg-theme-secondary-bg-color, #242f3d);
+      --button: var(--tg-theme-button-color, #2481cc);
+      --button-text: var(--tg-theme-button-text-color, #ffffff);
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 16px 16px 120px;
+    }
+    h2 { font-size: 20px; margin-bottom: 12px; }
+    .row { display: flex; gap: 10px; margin-bottom: 12px; }
+    .opt {
+      flex: 1;
+      padding: 12px;
+      background: var(--card);
+      border: 2px solid transparent;
+      border-radius: 12px;
+      text-align: center;
+      cursor: pointer;
+    }
+    .opt.active { border-color: var(--button); }
+    select, input {
+      width: 100%;
+      padding: 12px;
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--hint);
+      border-radius: 12px;
+      margin-bottom: 12px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    .info {
+      background: var(--card);
+      padding: 12px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: var(--hint);
+    }
+    .foot {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--bg);
+      padding: 16px;
+      border-top: 1px solid var(--card);
+    }
+    .warn { color: #ff5959; font-size: 13px; margin-bottom: 8px; text-align: center; }
+    button.go {
+      width: 100%;
+      background: var(--button);
+      color: var(--button-text);
+      border: none;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button.go:disabled { opacity: 0.5; cursor: not-allowed; }
+  </style>
 </head>
 <body>
-<script>
-const ADMIN_USERNAME = "cashPayment_only";
-const API_URL = "/order";
-const PICKUP_MIN = 60;
-const FREE_DELIVERY_FROM = 300;
+  <div id="app"></div>
 
-const ZONES = [
-  {name:"Lisbon center", fee:20, min:100, free:true},
-  {name:"Oeiras and area", fee:25, min:125},
-  {name:"Almada", fee:30, min:150},
-  {name:"West of Oeiras to Cascais", fee:40, min:200},
-  {name:"Costa da Caparica", fee:40, min:220},
-  {name:"Cascais", fee:50, min:250},
-  {name:"Setubal", fee:70, min:300},
-  {name:"Ericeira", fee:100, min:400},
-  {name:"Peniche", fee:120, min:500},
-  {name:"Algarve", fee:250, min:750},
-  {name:"Porto", fee:500, min:1000}
-];
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
 
-const MENUS = {
-  delivery: {
-    name: "420 menu (Bags Promo 3+1)",
-    categories: [
-      {
-        name: "420 menu Bags Promo",
-        products: [
-          {
-            name: "Bags (70€/unit | 3+1 Free)",
-            desc: "Buy 3 units get 1 free (4 for 210€)",
-            options: [
-              {label: "1 unit", price: 70},
-              {label: "3 + 1 Free (4 units)", price: 210}
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  menu2: {
-    name: "psychedelics",
-    categories: [
-      {
-        name: "psychedelics",
-        products: [
-          {
-            name: "Regular Product A",
-            desc: "Standard high quality item",
-            options: [
-              {label: "1 unit", price: 25},
-              {label: "3 units", price: 65}
-            ]
-          }
-        ]
-      }
-    ]
-  }
-};
+    const ZONES = [
+      { name: "Lisbon center", fee: 20, min: 100 },
+      { name: "Greater Lisbon", fee: 35, min: 200 }
+    ];
 
-const tg = window.Telegram.WebApp; tg.ready(); tg.expand();
-const S = {step: 1, mode:"delivery", zone:null, address:"", activeMenuKey:"delivery", catIndex:0, cart:{}, pay:"Cash"};
-const $ = id => document.getElementById(id);
+    let S = {
+      step: 1,
+      mode: 'delivery',
+      zone: 'Lisbon center',
+      address: '',
+      menu: '420'
+    };
 
-function getActiveMenu(){ return MENUS[S.activeMenuKey]; }
-
-function sub(){
-  let total = 0;
-  Object.values(MENUS).forEach(menu => {
-    menu.categories.forEach(cat => {
-      cat.products.forEach(p => {
-        p.options.forEach((opt, optIdx) => {
-          const key = p.name + "_" + optIdx;
-          const qty = S.cart[key] || 0;
-          total += qty * opt.price;
-        });
-      });
-    });
-  });
-  return total;
-}
-
-function zoneObj(){ return ZONES[S.zone]; }
-function minOrder(){ return S.mode==="pickup" ? PICKUP_MIN : (zoneObj()?zoneObj().min:0); }
-function calcFee(){ 
-  if(S.mode==="pickup" || !zoneObj()) return 0;
-  let baseFee = zoneObj().fee;
-  if(zoneObj().name !== "Lisbon center") {
-    baseFee = Math.max(0, baseFee - 20);
-  }
-  return (zoneObj().free && sub()>=FREE_DELIVERY_FROM) ? 0 : baseFee;
-}
-
-function render(){
-  let html = "";
-
-  if(S.step === 1) {
-    html += `
-      <h2>How do you want to receive it?</h2>
-      <div class="row">
-        <div class="opt ${S.mode==='delivery'?'on':''}" onclick="S.mode='delivery';S.zone=null;render()">Delivery</div>
-        <div class="opt ${S.mode==='pickup'?'on':''}" onclick="S.mode='pickup';S.zone=null;render()">Pickup</div>
-      </div>
-    `;
-
-    if(S.mode === 'delivery') {
-      html += `
-        <      <select onchange="S.zone=this.value;render()">
-        <option value="">Select your area</option>
-        ${ZONES.map((z,i)=>`<option value="${z.name}" ${S.zone===z.name?'selected':''}>${z.name}</option>`).join('')}
-      </select>
-      <input id="addr" placeholder="Street and house number (no floor/apt)" value="${S.address.replace(/"/g,'&quot;')}" oninput="S.address=this.value">
-    `;
-
-
-
-
-        ${zoneObj()?`<div class="info">Delivery fee: €${zoneObj().fee} ${zoneObj().name!=='Lisbon center'?'(€20 discount applied)':''}${zoneObj().free?`(free from €${FREE_DELIVERY_FROM})`:''}<br>Minimum order: €${zoneObj().min}</div>`:''}
-      `;
-    } else {
-      html += `<div class="info">Minimum order: €${PICKUP_MIN}</div>`;
+    function zoneObj() {
+      return ZONES.find(z => z.name === S.zone);
     }
 
-    html += `
-      <div class="foot">
-        <div id="msg" class="warn">${getStep1Error()}</div>
-        <button class="go" style="margin-top:10px" ${!canProceedStep1()?'disabled':''} onclick="S.step=2;render()">Continue to Menu</button>
-      </div>
-    `;
-  } 
-  else if(S.step === 2) {
-    const menu = getActiveMenu();
-    const currentCat = menu.categories[S.catIndex] || menu.categories[0];
+    function render() {
+      let html = '';
 
-    html += `
-      <button class="back-btn" onclick="S.step=1;render()">← Back to Address</button>
-      <h2>Select Menu & Products</h2>
-      <div class="tabs">
-        <div class="tab ${S.activeMenuKey==='delivery'?'on':''}" onclick="S.activeMenuKey='delivery';S.catIndex=0;render()">420 menu (Bags)</div>
-        <div class="tab ${S.activeMenuKey==='menu2'?'on':''}" onclick="S.activeMenuKey='menu2';S.catIndex=0;render()">psychedelics menu(Regular)</div>
-      </div>
-      <div class="tabs">
-        ${menu.categories.map((c, idx)=>`<div class="tab ${S.catIndex===idx?'on':''}" onclick="S.catIndex=${idx};render()">${c.name}</div>`).join('')}
-      </div>
-    `;
-
-    html += `<div class="row" style="grid-template-columns:1fr">`;
-    currentCat.products.forEach(p => {
-      html += `<div class="prod">
-        <b>${p.name}</b>
-        <div style="font-size:13px;color:var(--hint);margin-bottom:8px">${p.desc}</div>
-        <div style="display:flex;flex-direction:column;gap:6px">
-      `;
-      p.options.forEach((opt, optIdx) => {
-        const key = p.name + "_" + optIdx;
-        const qty = S.cart[key] || 0;
+      if (S.step === 1) {
         html += `
-          <div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg);padding:8px;border-radius:8px">
-            <span>${opt.label} - <b>€${opt.price}</b></span>
-            <div class="q">
-              <button onclick="chg('${p.name}', ${optIdx}, -1)">-</button>
-              <span id="q_${p.name}_${optIdx}" style="margin:0 12px">${qty}</span>
-              <button onclick="chg('${p.name}', ${optIdx}, 1)">+</button>
-            </div>
+          <h2>How do you want to receive it?</h2>
+          <div class="row">
+            <div class="opt ${S.mode==='delivery'?'active':''}" onclick="S.mode='delivery';render()">Delivery</div>
+            <div class="opt ${S.mode==='pickup'?'active':''}" onclick="S.mode='pickup';render()">Pickup</div>
           </div>
         `;
-      });
-      html += `</div></div>`;
-    });
-    html += `</div>`;
 
-    const m = minOrder(), s = sub();
-    html += `
-      <div class="foot">
-        <div>Items €${s}${S.mode==='delivery'?` + delivery €${calcFee()}`:''} = <b>€${s+calcFee()}</b></div>
-        <div class="bar"><i style="width:${m?Math.min(100,s/m*100):0}%"></i></div>
-        <div class="warn">${s < m ? `Add €${m-s} more to reach €${m} minimum` : ''}</div>
-        <button class="go" style="margin-top:10px" ${s < m ? 'disabled' : ''} onclick="S.step=3;render()">Continue to Checkout</button>
-      </div>
-    `;
-  }
-  else if(S.step === 3) {
-    html += `
-      <button class="back-btn" onclick="S.step=2;render()">← Back to Menu</button>
-      <h2>Payment Method</h2>
-      <div class="row">
-        <div class="opt ${S.pay==='Cash'?'on':''}" onclick="S.pay='Cash';render()">Cash</div>
-        <div class="opt ${S.pay==='Crypto'?'on':''}" onclick="S.pay='Crypto';render()">Crypto</div>
-      </div>
-      <div class="foot">
-        <div>Total: <b>€${sub()+calcFee()} (${S.pay})</b></div>
-        <button class="go" style="margin-top:10px" onclick="sendOrder()">Confirm & Open Chat</button>
-      </div>
-    `;
-  }
-
-  document.body.innerHTML = html;
-}
-
-function getStep1Error(){
-  if(S.mode === 'delivery') {
-    if(S.zone === null) return "Select your area";
-    if(S.address.trim().length < 3) return "Enter street and house number";
-  }
-  return "";
-}
-
-function canProceedStep1(){ return getStep1Error() === ""; }
-
-function chg(prodName, optIdx, delta){
-  const key = prodName + "_" + optIdx;
-  S.cart[key] = Math.max(0, (S.cart[key] || 0) + delta);
-  if(S.cart[key] === 0) delete S.cart[key];
-  render();
-}
-
-async function sendOrder(){
-  let itemsList = [];
-  Object.values(MENUS).forEach(menu => {
-    menu.categories.forEach(cat => {
-      cat.products.forEach(p => {
-        p.options.forEach((opt, optIdx) => {
-          const key = p.name + "_" + optIdx;
-          if(S.cart[key]) {
-            itemsList.push({name: p.name + " (" + opt.label + ")", qty: S.cart[key], price: opt.price});
-          }
-        });
-      });
-    });
-  });
-
-  const orderData = {
-    mode: S.mode,
-    zone: S.mode==='delivery'?zoneObj().name:null,
-    address: S.mode==='delivery'?S.address:null,
-    items: itemsList,
-    subtotal: sub(),
-    fee: calcFee(),
-    total: sub() + calcFee(),
-    payment: S.pay
-  };
-
-  if(API_URL){
-    try {
-      await fetch(API_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({order: orderData, initData: tg.initData})});
-    } catch(e) {}
-  }
-
-  tg.openTelegramLink("https://t.me/" + ADMIN_USERNAME + "?text=" + encodeURIComponent("hi"));
-}
-
-render();
-</script>
-</body>
-</html>
+        if (S.mode === 'delivery') {
+          html += `
+            <select onchange="S.zone=this.value;render()">
+              <option value="">Select your area</option>
+              ${ZONES.map(z => `<option value="${z.name}" ${S.zone===z.name?'selected':''}>${z.name}</option>`).join('')}
+            </select>
+            <input id="addr" placeholder="Street and
