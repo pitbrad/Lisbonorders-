@@ -130,11 +130,13 @@ function render(){
 
     if(S.mode === 'delivery') {
       html += `
-        <select onchange="S.zone=this.value===''?null:+this.value;render()">
-          <option value="">Select your area</option>
-          ${ZONES.map((z,i)=>`<option value="${i}" ${S.zone===i?'selected':''}>${z.name}</option>`).join('')}
-        </select>
-        <input id="addr" placeholder="Street and house number (no floor/apt)" value="${S.address.replace(/"/g,'&quot;')}" oninput="S.address=this.value">
+        <      <select onchange="S.zone=this.value;render()">
+        <option value="">Select your area</option>
+        ${ZONES.map((z,i)=>`<option value="${z.name}" ${S.zone===z.name?'selected':''}>${z.name}</option>`).join('')}
+      </select>
+      <input id="addr" placeholder="Street and house number (no floor/apt)" value="${S.address.replace(/"/g,'&quot;')}" oninput="S.address=this.value">
+    `;
+
 
 
 
