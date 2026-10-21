@@ -137,6 +137,7 @@ function render(){
         <input id="addr" placeholder="Street and house number (no floor/apt)" value="${S.address.replace(/"/g,'&quot;')}" oninput="S.address=this.value">
 
 
+
         ${zoneObj()?`<div class="info">Delivery fee: €${zoneObj().fee} ${zoneObj().name!=='Lisbon center'?'(€20 discount applied)':''}${zoneObj().free?`(free from €${FREE_DELIVERY_FROM})`:''}<br>Minimum order: €${zoneObj().min}</div>`:''}
       `;
     } else {
