@@ -157,8 +157,8 @@ function render(){
       <button class="back-btn" onclick="S.step=1;render()">← Back to Address</button>
       <h2>Select Menu & Products</h2>
       <div class="tabs">
-        <div class="tab ${S.activeMenuKey==='delivery'?'on':''}" onclick="S.activeMenuKey='delivery';S.catIndex=0;render()">Menu 1 (Bags)</div>
-        <div class="tab ${S.activeMenuKey==='menu2'?'on':''}" onclick="S.activeMenuKey='menu2';S.catIndex=0;render()">Menu 2 (Regular)</div>
+        <div class="tab ${S.activeMenuKey==='delivery'?'on':''}" onclick="S.activeMenuKey='delivery';S.catIndex=0;render()">420 menu (Bags)</div>
+        <div class="tab ${S.activeMenuKey==='menu2'?'on':''}" onclick="S.activeMenuKey='menu2';S.catIndex=0;render()">psychedelics menu(Regular)</div>
       </div>
       <div class="tabs">
         ${menu.categories.map((c, idx)=>`<div class="tab ${S.catIndex===idx?'on':''}" onclick="S.catIndex=${idx};render()">${c.name}</div>`).join('')}
