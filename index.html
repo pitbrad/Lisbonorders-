@@ -134,7 +134,8 @@ function render(){
           <option value="">Select your area</option>
           ${ZONES.map((z,i)=>`<option value="${i}" ${S.zone===i?'selected':''}>${z.name}</option>`).join('')}
         </select>
-        <input id="addr" placeholder="Street and house number (no floor/apt)" value="${S.address.replace(/"/g,'&quot;')}" oninput="S.address=this.value">
+        <input id="addr" placeholder="Street and house number (no floor/apt)" value="${S.address.replace(/"/g,'&quot;')}" oninput="S.address=this.value;render()" onchange="S.address=this.value;render()">
+
         ${zoneObj()?`<div class="info">Delivery fee: €${zoneObj().fee} ${zoneObj().name!=='Lisbon center'?'(€20 discount applied)':''}${zoneObj().free?`(free from €${FREE_DELIVERY_FROM})`:''}<br>Minimum order: €${zoneObj().min}</div>`:''}
       `;
     } else {
