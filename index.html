@@ -29,9 +29,15 @@ const ADMIN_USERNAME = "cashPayment_only";
 const API_URL = "/order";
 const PICKUP_MIN = 60;
 const FREE_DELIVERY_FROM = 300;
+const DISCOUNT_FROM = 300;   // €20 delivery discount applies from this subtotal
+const DISCOUNT = 20;
 
 const ZONES = [
   {name:"Lisbon center", fee:20, min:100, free:true},
+  {name:"Lumiar", fee:30, min:150},
+  {name:"Olivais", fee:30, min:150},
+  {name:"Areeiro", fee:30, min:150},
+  {name:"Parque das Nações", fee:30, min:150},
   {name:"Oeiras and area", fee:25, min:125},
   {name:"Almada", fee:30, min:150},
   {name:"West of Oeiras to Cascais", fee:40, min:200},
@@ -83,7 +89,12 @@ const MENUS = {
   }
 };
 
-const tg = window.Telegram.WebApp; tg.ready(); tg.expand();
+// Falls back to a stub if the Telegram script didn't load (e.g. opened in a normal browser)
+const tg = (window.Telegram && window.Telegram.WebApp) || {
+  ready(){}, expand(){}, initData:"",
+  openTelegramLink(u){ window.open(u, "_blank"); }
+};
+tg.ready(); tg.expand();
 const S = {step: 1, mode:"delivery", zone:null, address:"", activeMenuKey:"delivery", catIndex:0, cart:{}, pay:"Cash"};
 const $ = id => document.getElementById(id);
 
@@ -106,53 +117,54 @@ function sub(){
 }
 
 function zoneObj(){ return ZONES[S.zone]; }
+function hasDiscount(z){ return z && z.name !== "Lisbon center"; }
 function minOrder(){ return S.mode==="pickup" ? PICKUP_MIN : (zoneObj()?zoneObj().min:0); }
-function calcFee(){ 
+function calcFee(){
   if(S.mode==="pickup" || !zoneObj()) return 0;
-  let baseFee = zoneObj().fee;
-  if(zoneObj().name !== "Lisbon center") {
-    baseFee = Math.max(0, baseFee - 20);
-  }
-  return (zoneObj().free && sub()>=FREE_DELIVERY_FROM) ? 0 : baseFee;
+  const z = zoneObj();
+  let baseFee = z.fee;
+  if(hasDiscount(z) && sub()>=DISCOUNT_FROM) baseFee = Math.max(0, baseFee - DISCOUNT);
+  return (z.free && sub()>=FREE_DELIVERY_FROM) ? 0 : baseFee;
 }
 
 function render(){
   let html = "";
 
   if(S.step === 1) {
-    html += `
+    html += 
       <h2>How do you want to receive it?</h2>
       <div class="row">
         <div class="opt ${S.mode==='delivery'?'on':''}" onclick="S.mode='delivery';S.zone=null;render()">Delivery</div>
         <div class="opt ${S.mode==='pickup'?'on':''}" onclick="S.mode='pickup';S.zone=null;render()">Pickup</div>
       </div>
-    `;
+    ;
 
     if(S.mode === 'delivery') {
-      html += `
+      const z = zoneObj();
+      html += 
         <select onchange="S.zone=this.value===''?null:+this.value;render()">
           <option value="">Select your area</option>
-          ${ZONES.map((z,i)=>`<option value="${i}" ${S.zone===i?'selected':''}>${z.name}</option>`).join('')}
+          ${ZONES.map((zn,i)=><option value="${i}" ${S.zone===i?'selected':''}>${zn.name}</option>).join('')}
         </select>
-        <input id="addr" placeholder="Street and house number (no floor/apt)" value="${S.address.replace(/"/g,'&quot;')}" oninput="S.address=this.value">
-        ${zoneObj()?`<div class="info">Delivery fee: €${zoneObj().fee} ${zoneObj().name!=='Lisbon center'?'(€20 discount applied)':''}${zoneObj().free?`(free from €${FREE_DELIVERY_FROM})`:''}<br>Minimum order: €${zoneObj().min}</div>`:''}
-      `;
+        <input id="addr" placeholder="Street and house number (no floor/apt)" value="${S.address.replace(/"/g,'&quot;')}" oninput="S.address=this.value;refreshStep1()">
+        ${z?<div class="info">Delivery fee: €${z.fee} ${hasDiscount(z)?(€${DISCOUNT} off orders from €${DISCOUNT_FROM}):''}${z.free? (free from €${FREE_DELIVERY_FROM}):''}<br>Minimum order: €${z.min}</div>:''}
+      ;
     } else {
-      html += `<div class="info">Minimum order: €${PICKUP_MIN}</div>`;
+      html += <div class="info">Minimum order: €${PICKUP_MIN}</div>;
     }
 
-    html += `
+    html += 
       <div class="foot">
         <div id="msg" class="warn">${getStep1Error()}</div>
-        <button class="go" style="margin-top:10px" ${!canProceedStep1()?'disabled':''} onclick="S.step=2;render()">Continue to Menu</button>
+        <button id="next1" class="go" style="margin-top:10px" ${!canProceedStep1()?'disabled':''} onclick="if(canProceedStep1()){S.step=2;render()}">Continue to Menu</button>
       </div>
-    `;
-  } 
+    ;
+  }
   else if(S.step === 2) {
     const menu = getActiveMenu();
     const currentCat = menu.categories[S.catIndex] || menu.categories[0];
 
-    html += `
+    html += 
       <button class="back-btn" onclick="S.step=1;render()">← Back to Address</button>
       <h2>Select Menu & Products</h2>
       <div class="tabs">
@@ -160,21 +172,22 @@ function render(){
         <div class="tab ${S.activeMenuKey==='menu2'?'on':''}" onclick="S.activeMenuKey='menu2';S.catIndex=0;render()">Menu 2 (Regular)</div>
       </div>
       <div class="tabs">
-        ${menu.categories.map((c, idx)=>`<div class="tab ${S.catIndex===idx?'on':''}" onclick="S.catIndex=${idx};render()">${c.name}</div>`).join('')}
+        ${menu.categories.map((c, idx)=><div class="tab ${S.catIndex===idx?'on':''}" onclick="S.catIndex=${idx};render()">${c.name}</div>).join('')}
       </div>
-    `;
+    ;
 
-    html += `<div class="row" style="grid-template-columns:1fr">`;
+    html += <div class="row" style="grid-template-columns:1fr">;
     currentCat.products.forEach(p => {
       html += `<div class="prod">
         <b>${p.name}</b>
-        <div style="font-size:13px;color:var(--hint);margin-bottom:8px">${p.desc}</div>
+
+<div style="font-size:13px;color:var(--hint);margin-bottom:8px">${p.desc}</div>
         <div style="display:flex;flex-direction:column;gap:6px">
-      `;
+      ;
       p.options.forEach((opt, optIdx) => {
         const key = p.name + "_" + optIdx;
         const qty = S.cart[key] || 0;
-        html += `
+        html += 
           <div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg);padding:8px;border-radius:8px">
             <span>${opt.label} - <b>€${opt.price}</b></span>
             <div class="q">
@@ -183,24 +196,24 @@ function render(){
               <button onclick="chg('${p.name}', ${optIdx}, 1)">+</button>
             </div>
           </div>
-        `;
+        ;
       });
-      html += `</div></div>`;
+      html += </div></div>;
     });
-    html += `</div>`;
+    html += </div>;
 
     const m = minOrder(), s = sub();
-    html += `
+    html += 
       <div class="foot">
-        <div>Items €${s}${S.mode==='delivery'?` + delivery €${calcFee()}`:''} = <b>€${s+calcFee()}</b></div>
+        <div>Items €${s}${S.mode==='delivery'? + delivery €${calcFee()}:''} = <b>€${s+calcFee()}</b></div>
         <div class="bar"><i style="width:${m?Math.min(100,s/m*100):0}%"></i></div>
-        <div class="warn">${s < m ? `Add €${m-s} more to reach €${m} minimum` : ''}</div>
+        <div class="warn">${s < m ? Add €${m-s} more to reach €${m} minimum : ''}</div>
         <button class="go" style="margin-top:10px" ${s < m ? 'disabled' : ''} onclick="S.step=3;render()">Continue to Checkout</button>
       </div>
-    `;
+    ;
   }
   else if(S.step === 3) {
-    html += `
+    html += 
       <button class="back-btn" onclick="S.step=2;render()">← Back to Menu</button>
       <h2>Payment Method</h2>
       <div class="row">
@@ -226,6 +239,13 @@ function getStep1Error(){
 }
 
 function canProceedStep1(){ return getStep1Error() === ""; }
+
+// Updates only the message + button while typing (no render, so the keyboard stays open)
+function refreshStep1(){
+  const btn = $("next1"), msg = $("msg");
+  if(btn) btn.disabled = !canProceedStep1();
+  if(msg) msg.textContent = getStep1Error();
+}
 
 function chg(prodName, optIdx, delta){
   const key = prodName + "_" + optIdx;
